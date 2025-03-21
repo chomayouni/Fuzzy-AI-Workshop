@@ -10,7 +10,14 @@ This project uses something called "fuzzy logic," which is a type of artificial 
 
 By the end of this project, you'll be able to control a floating ball using a joystick or let the Arduino control it automatically with fuzzy logic. 
 
+![image](https://github.com/user-attachments/assets/53250bc2-0b13-4796-923f-bc8e90da0316) ![image](https://github.com/user-attachments/assets/22510e72-02c6-4eee-9231-7c15ab852d44)
+
+
+
 ## What You'll Need (Parts List)
+
+![image](https://github.com/user-attachments/assets/8156e95c-4fef-4879-8915-150d8aa9c319)
+
 
 - Arduino Uno or compatible board
 - Ultrasonic distance sensor (HC-SR04)
@@ -46,30 +53,61 @@ Let's put everything together! Here's a step-by-step guide:
 
 TODO: put circuit diagram here
 
-1. **Set up the tube**: Place your clear tube vertically in the 3D printed fan adapter - It should friction fit right in.
+1. **Assemble the fan housing**: Grab the M3 Bolts, M3 nuts, the 80mm fan, and the 3D printed housings for the top and the bottom of the fans
+   
+   ![image](https://github.com/user-attachments/assets/68304930-245b-4a2a-a0c4-11d2b2acb600)
+   
+   - Sandwch the fan between the 2 housings and insert the two M3 bolts as shown below:
+     
+     ![image](https://github.com/user-attachments/assets/859facb2-05ab-41ac-a505-3a1fa8853771)
 
-2. **Connect the ultrasonic sensor**:
+   - Turn the module on its side and gently screw on the nuts. Be careful to nobreak the legs attached to the intake of the fan.
+     
+     ![image](https://github.com/user-attachments/assets/4cd06f3c-8fad-4c84-9695-e35cea70157c)
+
+3. **Set up the tube**: Place your clear tube vertically in the 3D printed fan adapter - It should friction fit right in.
+   
+      ![image](https://github.com/user-attachments/assets/dfc8c834-01e7-4533-a51d-d2ab74186d78)
+
+4.  **Assemble the Ultrasonic Sensor housing**:
+   - Take the bracket and thread a ziptie thorugh
+     
+     ![image](https://github.com/user-attachments/assets/d6c983f3-6e39-4501-8fba-afd0454b3e9f)
+
+   - Attach the bracket to the top of the tub. It should be tight enough to stay, but loose enough to adjust
+     
+     ![image](https://github.com/user-attachments/assets/11dd11c1-3586-4b91-9dba-130077e78574)
+
+   - Insert the Ultrasonic sensor facing down into the tube. Secure it with electrical tape
+     
+     ![image](https://github.com/user-attachments/assets/c067db87-8590-4795-9d83-71c52a7d83d8)
+
+
+6.  **Connect the ultrasonic sensor**:
    - Connect VCC pin to 5V on Arduino
    - Connect GND pin to GND on Arduino
    - Connect Trigger pin to Digital pin 2 on Arduino
    - Connect Echo pin to Digital pin 3 on Arduino
 
-3. **Connect the joystick**:
+6. **Connect the joystick**:
    - Connect VCC to 5V on Arduino
    - Connect GND to GND on Arduino
    - Connect the X or Y output to Analog pin A0 on Arduino
 
-4. **Connect the fan with MOSFET**:
+7. **Connect the fan with MOSFET**:
    - Connect the fan's power wire to your power supply positive terminal
    - Connect the fan's ground wire to the MOSFET's drain pin
    - Connect the MOSFET's source pin to the power supply ground
    - Connect the MOSFET's gate pin to Digital pin 9 on Arduino
    - Add a 10K resistor between the MOSFET's gate and ground
 
-5. **Final check**:
+8. **Final check**:
    - Make sure all ground connections are connected together
    - Double-check all connections before powering up
    - Place the fan at the bottom of the tube, pointing upward
+  
+   ![image](https://github.com/user-attachments/assets/12f245a0-be7b-4bc7-b3c2-7e8282d829f6)
+
 
 ## Understanding the Code
 
