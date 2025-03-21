@@ -12,7 +12,11 @@
 #define MODE_LED 7
 
 // Ultrasonic Sensor (Trigger, Echo)
+<<<<<<< Updated upstream
 SimpleUltrasonic sensor(TRIGGER_PIN, ECHO_PIN);
+=======
+SimpleUltrasonic sensor(3, 2);
+>>>>>>> Stashed changes
 
 // Fuzzy Logic System
 Fuzzy *fuzzy = new Fuzzy();
@@ -21,9 +25,12 @@ FuzzySet *low, *mediumLow, *medium, *mediumHigh, *high;
 
 // Toggle mode: 0 = Joystick (Manual), 1 = Fuzzy (Automatic)
 bool fuzzyMode = true;
+<<<<<<< Updated upstream
 
 // Debounce joystick button press
 bool joystickPressed = false;
+=======
+>>>>>>> Stashed changes
 
 float mapfloat(float in, float in_min, float in_max, float out_min, float out_max) {
     return (((in - in_min) / (in_max - in_min)) * (out_max - out_min) + out_min);
@@ -165,6 +172,7 @@ void loop() {
 
       setFanSpeed(fanPWM);
 
+<<<<<<< Updated upstream
       #ifdef SERIAL_PRINTS
         Serial.print("Fan PWM (Fuzzy): ");
         Serial.print(fanPWM);
@@ -173,6 +181,29 @@ void loop() {
       #ifdef SERIAL_PRINTS
         Serial.println("Error: Measurement timeout");
       #endif
+=======
+//            Serial.print("Fan PWM (Fuzzy): ");
+//            Serial.println(fanPWM);
+        } else {
+            Serial.println("Error: Measurement timeout");
+        }
+    } 
+    
+    
+    else {
+        int joystickValue = analogRead(JOYSTICK_PIN);
+        float pwmDutyCycle = mapfloat(joystickValue, 0.0, 1023.0, 70.0, 90.0);
+
+        setFanSpeed(pwmDutyCycle);
+
+//        Serial.print("Joystick: ");
+//        Serial.print(joystickValue);
+//        Serial.print(" -> Fan PWM: ");
+//        Serial.println(pwmDutyCycle);
+        Serial.print("Distance: ");
+        Serial.println(smoothedDistance);
+        
+>>>>>>> Stashed changes
     }
   } 
   else {
