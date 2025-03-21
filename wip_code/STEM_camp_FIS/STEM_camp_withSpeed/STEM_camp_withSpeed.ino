@@ -17,7 +17,7 @@ FuzzySet *goingDownFast, *goingDown, *steady, *goingUp, *goingUpFast;
 bool fuzzyMode = true;
 
 // Target position (in inches)
-const float targetDistance = 9.0;  // Set your desired target distance here
+//const float targetDistance = 9.0;  // Set your desired target distance here
 
 // Moving Average Filter for Smoothing Distance Measurements
 float smoothedDistance = 0;
@@ -26,6 +26,31 @@ float previousDistance = 0;
 unsigned long previousTime, timea, timeb = 0;
 float ballSpeed = 0;
 float targetError = 0;  // Difference from target position
+float currentTargetPosition = 7.0;  // Start at middle of range
+const float minTargetPosition = 3.0;
+const float maxTargetPosition = 12.0;
+
+void updateTargetWithJoystick() {
+    // Read joystick value
+    int joystickValue = analogRead(JOYSTICK_PIN);
+    
+    // Calculate rate of change based on joystick position
+    // Center position (around 512) = no change
+    // Full right/up = fast increase, full left/down = fast decrease
+    float rate = mapfloat(joystickValue, 0.0, 1023.0, -0.05, 0.05);
+    
+    // Create a dead zone in the middle to prevent drift
+    if (abs(rate) < 0.01) {
+        rate = 0.0;
+    }
+    
+    // Update target position at constant rate
+    currentTargetPosition += rate;
+    
+    // Constrain to valid range
+    currentTargetPosition = constrain(currentTargetPosition, minTargetPosition, maxTargetPosition);
+}
+
 
 float mapfloat(float in, float in_min, float in_max, float out_min, float out_max) {
     return (((in - in_min) / (in_max - in_min)) * (out_max - out_min) + out_min);
@@ -70,7 +95,7 @@ void updateBallSpeed() {
         ballSpeed = (speedFilterAlpha * instantSpeed) + ((1.0 - speedFilterAlpha) * ballSpeed);
         
         // Larger dead zone for near-zero speeds
-        if (abs(ballSpeed) < 0.6) {
+        if (abs(ballSpeed) < 0.15) {
             ballSpeed = 0.0;
         }
         
@@ -82,20 +107,20 @@ void updateBallSpeed() {
     }
 }
 
-void updateTargetError() {
-    // Positive error means ball is above target (distance less than target)
-    // Negative error means ball is below target (distance more than target)
-    targetError = targetDistance - smoothedDistance;
-}
+//void updateTargetError() {
+//    // Positive error means ball is above target (distance less than target)
+//    // Negative error means ball is below target (distance more than target)
+//    targetError = targetDistance - smoothedDistance;
+//}
 
 void setupFuzzy() {
     // Define input fuzzy variable for target error
     FuzzyInput *errorInput = new FuzzyInput(1);
-    veryNegative = new FuzzySet(-7, -7, -5, -3);      // Far below target
+    veryNegative = new FuzzySet(-7, -7, -5, -2);      // Far below target
     negative = new FuzzySet(-4, -2.5, -2.5, -0.5);    // Below target
-    zero = new FuzzySet(-1.5, -0.2, 0.2, 1.5);        // At target
+    zero = new FuzzySet(-1.0, -0.2, 0.2, 1.0);        // At target
     positive = new FuzzySet(0.5, 2.5, 2.5, 4);        // Above target  
-    veryPositive = new FuzzySet(3, 5, 7, 7);          // Far above target
+    veryPositive = new FuzzySet(2, 5, 7, 7);          // Far above target
     errorInput->addFuzzySet(veryNegative);
     errorInput->addFuzzySet(negative);
     errorInput->addFuzzySet(zero);
@@ -103,7 +128,7 @@ void setupFuzzy() {
     errorInput->addFuzzySet(veryPositive);
     fuzzy->addFuzzyInput(errorInput);
 
-   FuzzyInput *speedInput = new FuzzyInput(2);
+    FuzzyInput *speedInput = new FuzzyInput(2);
     goingDown = new FuzzySet(-10, -10, -1.5, -0.3);   
     steady = new FuzzySet(-0.75, -0.1, 0.1, 0.75);    
     goingUp = new FuzzySet(0.3, 1.5, 10, 10);         
@@ -245,12 +270,19 @@ void loop() {
         float distance = sensor.measureDistanceInInch();
         updateSmoothedDistance(distance);
         updateBallSpeed();
-        updateTargetError();
+        
+        // Update target at constant rate based on joystick
+        updateTargetWithJoystick();
+        
+        // Calculate error using the current target
+        targetError = currentTargetPosition - smoothedDistance;
         
         if (distance != -1) {
             Serial.print("Distance: ");
             Serial.print(smoothedDistance);
-            Serial.print(" inches, Target Error: ");
+            Serial.print(" inches, Target: ");
+            Serial.print(currentTargetPosition);  // Print the current target
+            Serial.print(", Error: ");
             Serial.print(targetError);
             Serial.print(", Speed: ");
             Serial.print(ballSpeed);
@@ -263,8 +295,13 @@ void loop() {
             fuzzy->fuzzify();
             float fanPWM = fuzzy->defuzzify(1);
             
-            // Rate limiting to prevent large jumps
-            float maxChange = 0.4; // Limit how quickly fan can change
+            // Adaptive rate limiting - faster during large errors
+            float maxChange = 0.2; // Normal rate limit
+            if (abs(targetError) > 3.0) {
+                maxChange = 0.2; // Faster response for large errors
+            }
+            
+            // Apply rate limiting
             if (fanPWM > lastFanPWM + maxChange) {
                 fanPWM = lastFanPWM + maxChange;
             } else if (fanPWM < lastFanPWM - maxChange) {
@@ -286,5 +323,5 @@ void loop() {
         setFanSpeed(pwmDutyCycle);
     }
     timeb = millis();
-    delay(10);
+    delay(5);
 }
