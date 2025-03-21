@@ -5,7 +5,16 @@
 #define JOYSTICK_PIN A0
 
 // Ultrasonic Sensor (Trigger, Echo)
-SimpleUltrasonic sensor(2, 3);
+SimpleUltrasonic sensor(3, 2);
+
+// Singleton Outputs:
+#define MAX_SPEED 83
+#define MIN_SPEED 76.5
+const float VERY_LOW_SPEED (MIN_SPEED);
+const float LOW_SPEED (MIN_SPEED + ((MAX_SPEED - MIN_SPEED) * 0.25));
+const float MID_SPEED ((MAX_SPEED + MIN_SPEED) * 0.5);
+const float HIGH_SPEED (MIN_SPEED + ((MAX_SPEED - MIN_SPEED) * 0.75));
+const float VERY_HIGH_SPEED (MAX_SPEED);
 
 // Fuzzy Logic System
 Fuzzy *fuzzy = new Fuzzy();
@@ -61,7 +70,7 @@ void updateSmoothedDistance(float newReading) {
     static int index = 0;
 
     // Reject clearly erroneous readings
-    if (newReading > 0 && newReading < 17) {  // Valid range check
+    if (newReading > 0 && newReading < 16) {  // Valid range check
         readings[index] = newReading;
         index = (index + 1) % smoothingFactor;
 
@@ -138,11 +147,11 @@ void setupFuzzy() {
     fuzzy->addFuzzyInput(speedInput);
 
     FuzzyOutput *fanSpeed = new FuzzyOutput(1);
-    veryLow = new FuzzySet(76.5, 76.5, 76.5, 76.5);
-    low = new FuzzySet(78.0, 78.0, 78.0, 78.0);      
-    medium = new FuzzySet(79.5, 79.5, 79.5, 79.5);   
-    high = new FuzzySet(81.0, 81.0, 81.0, 81.0);     
-    veryHigh = new FuzzySet(83.0, 83.0, 83.0, 83.0); 
+    veryLow = new FuzzySet(VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED);
+    low = new FuzzySet(LOW_SPEED, LOW_SPEED, LOW_SPEED, LOW_SPEED);      
+    medium = new FuzzySet(MID_SPEED, MID_SPEED, MID_SPEED, MID_SPEED);   
+    high = new FuzzySet(HIGH_SPEED, HIGH_SPEED, HIGH_SPEED, HIGH_SPEED);     
+    veryHigh = new FuzzySet(VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED); 
     fanSpeed->addFuzzySet(veryLow);
     fanSpeed->addFuzzySet(low);
     fanSpeed->addFuzzySet(medium);
