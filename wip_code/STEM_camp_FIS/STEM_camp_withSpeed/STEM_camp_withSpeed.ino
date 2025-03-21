@@ -4,6 +4,8 @@
 #define PWM_D9_PIN 9  // Must be 9 or 10 (Timer1-based PWM)
 #define JOYSTICK_PIN A0
 
+#define PRINTS
+
 // Ultrasonic Sensor (Trigger, Echo)
 SimpleUltrasonic sensor(3, 2);
 
@@ -275,9 +277,9 @@ void setup() {
 
 void loop() {
     timea = millis();
+    float distance = sensor.measureDistanceInInch();
+    updateSmoothedDistance(distance);
     if (fuzzyMode) {
-        float distance = sensor.measureDistanceInInch();
-        updateSmoothedDistance(distance);
         updateBallSpeed();
         
         // Update target at constant rate based on joystick
@@ -287,15 +289,17 @@ void loop() {
         targetError = currentTargetPosition - smoothedDistance;
         
         if (distance != -1) {
-            Serial.print("Distance: ");
-            Serial.print(smoothedDistance);
-            Serial.print(" inches, Target: ");
-            Serial.print(currentTargetPosition);  // Print the current target
-            Serial.print(", Error: ");
-            Serial.print(targetError);
-            Serial.print(", Speed: ");
-            Serial.print(ballSpeed);
-            Serial.println(" in/sec");
+            #ifdef PRINTS
+                Serial.print("Distance: ");
+                Serial.print(smoothedDistance);
+                Serial.print(" in\tTarget: ");
+                Serial.print(currentTargetPosition);  // Print the current target
+                Serial.print(" in\tError: ");
+                Serial.print(targetError);
+                Serial.print(" in\tSpeed: ");
+                Serial.print(ballSpeed);
+                Serial.print(" in/sec");
+            #endif
 
             static float lastFanPWM = 79.5; // Start with medium value
             
@@ -319,9 +323,12 @@ void loop() {
             
             lastFanPWM = fanPWM;
             
+            #ifdef PRINTS
+                Serial.print("\tFan speed: ");
+                Serial.println(fanPWM);
+            #endif
+
             // Apply fan power
-            Serial.print("Fan speed: ");
-            Serial.println(fanPWM);
             setFanSpeed(fanPWM);
         } else {
             Serial.println("Error: Measurement timeout");
@@ -330,6 +337,12 @@ void loop() {
         int joystickValue = analogRead(JOYSTICK_PIN);
         float pwmDutyCycle = mapfloat(joystickValue, 0.0, 1023.0, 50.0, 90.0);
         setFanSpeed(pwmDutyCycle);
+        #ifdef PRINTS
+            Serial.print("Manual Mode: \t Distance: ");
+            Serial.print(smoothedDistance);
+            Serial.print("\tFanspeed(%): ");
+            Serial.println(pwmDutyCycle);
+        #endif
     }
     timeb = millis();
     delay(5);
