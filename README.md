@@ -4,17 +4,17 @@
 
 ## Introduction
 
-Welcome to the Floating Ball project! In this cool experiment, we'll use an Arduino to make a ball float in the air at a specific height. It's like magic, but it's actually science and programming working together!
+Welcome to the Floating Ball project! In this experiment, we'll use an Arduino to make a ball float in the air at a specific height. 
 
 This project uses something called "fuzzy logic," which is a type of artificial intelligence that helps computers make decisions in a way that's more like how humans think. Instead of just "on" or "off," fuzzy logic can handle "kind of" or "almost" or "a little bit" - just like we do when we're thinking!
 
-By the end of this project, you'll be able to control a floating ball using a joystick or let the Arduino control it automatically with fuzzy logic. Let's get started!
+By the end of this project, you'll be able to control a floating ball using a joystick or let the Arduino control it automatically with fuzzy logic. 
 
 ## What You'll Need (Parts List)
 
 - Arduino Uno or compatible board
 - Ultrasonic distance sensor (HC-SR04)
-- Small DC fan (5V or 12V)
+- Small DC fan (5V or 12V) - We uses a 12V 80mm computer fan
 - MOSFET transistor (for controlling the fan speed)
 - Joystick module
 - Ping pong ball (or other lightweight ball)
@@ -44,9 +44,9 @@ If you can't find these libraries, you can download them from these links:
 
 Let's put everything together! Here's a step-by-step guide:
 
-![Circuit Diagram](https://via.placeholder.com/800x600?text=Circuit+Diagram)
+TODO: put circuit diagram here
 
-1. **Set up the tube**: Place your clear tube vertically so that it's stable and won't fall over.
+1. **Set up the tube**: Place your clear tube vertically in the 3D printed fan adapter - It should friction fit right in.
 
 2. **Connect the ultrasonic sensor**:
    - Connect VCC pin to 5V on Arduino
