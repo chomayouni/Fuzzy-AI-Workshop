@@ -51,7 +51,8 @@ If you can't find these libraries, you can download them from these links:
 
 Let's put everything together! Here's a step-by-step guide:
 
-TODO: put circuit diagram here
+![image](https://github.com/user-attachments/assets/0b0f1993-6ced-48fe-9e79-cadcdb238260)
+
 
 1. **Assemble the fan housing**: Grab the M3 Bolts, M3 nuts, the 80mm fan, and the 3D printed housings for the top and the bottom of the fans
    
@@ -133,6 +134,7 @@ This is the AI part! Fuzzy logic helps the Arduino decide how to control the fan
 - How fast the ball is moving (going up, going down, or steady)
 
 The code sets up rules like:
+
 - If the ball is far below the target AND moving downward, turn the fan on high
 - If the ball is at the target AND not moving much, keep the fan at medium
 - If the ball is above the target AND moving upward, turn the fan to very low
@@ -154,39 +156,78 @@ PWM stands for "Pulse Width Modulation," and it's how we control the fan speed. 
 
 The default mode is "Fuzzy Mode" which means the Arduino's fuzzy logic is controlling the fan to keep the ball at the target height. You can move the joystick to change the target height.
 
-## Introduction to Fuzzy Logic
+# Introduction to Fuzzy Logic
 
 Fuzzy logic is really cool because it works more like human thinking than regular computer logic. Here's a simple explanation:
 
-### Regular (Boolean) Logic vs. Fuzzy Logic:
+## Regular (Boolean) Logic vs. Fuzzy Logic:
 
-- **Regular Logic**: Things are either TRUE (1) or FALSE (0). A light is either ON or OFF.
-- **Fuzzy Logic**: Things can be partially true. A light can be DIM, BRIGHT, or anything in between.
+* **Regular Logic**: Things are either TRUE (1) or FALSE (0). A light is either ON or OFF.
+* **Fuzzy Logic**: Things can be partially true. A light can be DIM, BRIGHT, or anything in between.
 
-![Fuzzy Logic Diagram](https://via.placeholder.com/800x400?text=Fuzzy+Logic+Explanation)
+## Mamdani Fuzzy Logic Chart
+
+Below is a visual representation of our fuzzy logic system:
+
+*[See the detailed Mamdani Fuzzy Logic Chart below for a visual representation of our system]*
 
 In our project, we use fuzzy logic to describe:
 
 1. **How far from the target**:
-   - VERY NEGATIVE (way below target)
-   - NEGATIVE (a bit below target)
-   - ZERO (at target)
-   - POSITIVE (a bit above target)
-   - VERY POSITIVE (way above target)
+   * VERY NEGATIVE (way below target)
+   * NEGATIVE (a bit below target)
+   * ZERO (at target)
+   * POSITIVE (a bit above target)
+   * VERY POSITIVE (way above target)
 
 2. **Ball speed**:
-   - GOING DOWN (moving downward)
-   - STEADY (not moving much)
-   - GOING UP (moving upward)
+   * GOING DOWN (moving downward)
+   * STEADY (not moving much)
+   * GOING UP (moving upward)
 
 3. **Fan speed**:
-   - VERY LOW (75% power)
-   - LOW (78% power)
-   - MEDIUM (80% power)
-   - HIGH (82% power)
-   - VERY HIGH (85% power)
+   * VERY LOW (75% power)
+   * LOW (78% power)
+   * MEDIUM (80% power)
+   * HIGH (82% power)
+   * VERY HIGH (85% power)
 
 The fuzzy controller combines these to make decisions. For example, if the ball is NEGATIVE (below target) and GOING UP, the fuzzy logic might set the fan to LOW because the ball is already moving in the right direction.
+
+## Understanding the Mamdani Fuzzy System
+
+The fuzzy logic control system in this project uses a Mamdani-type inference system with a K-map based rule generation approach. Let's break down what this means:
+
+### How the Fuzzy System Works:
+
+1. **Input 1: Position Error** - This shows how far the ball is from where we want it to be
+   * Negative Far: Ball is way below target (0-85 on scaled range)
+   * Negative Close: Ball is a bit below target (65-125 on scaled range)
+   * Zero: Ball is at the target (100-140 on scaled range)
+   * Positive Close: Ball is a bit above target (130-175 on scaled range)
+   * Positive Far: Ball is way above target (150-255 on scaled range)
+
+2. **Input 2: Ball Speed** - This shows how fast the ball is moving
+   * Negative Fast: Ball moving down quickly (0-90 on scaled range)
+   * Negative Slow: Ball moving down slowly (50-120 on scaled range)
+   * Zero: Ball isn't moving much (100-155 on scaled range)
+   * Positive Slow: Ball moving up slowly (140-200 on scaled range)
+   * Positive Fast: Ball moving up quickly (150-255 on scaled range)
+
+3. **Output: Fan Speed Adjustment** - Unlike the previous version, this system outputs delta values (changes to fan speed)
+   * Very Negative: Decrease fan speed significantly (-0.01)
+   * Negative: Decrease fan speed slightly (-0.005)
+   * Zero: Keep fan speed the same (0.0)
+   * Positive: Increase fan speed slightly (0.005)
+   * Very Positive: Increase fan speed significantly (0.01)
+
+![image](https://github.com/user-attachments/assets/f8d3a78b-3d1d-42c0-8fdf-85370095847e)
+
+## Fuzzy Logic Rule Chart
+
+Below is a visual representation of all the fuzzy logic rules used in our system, organized as a K-map (Karnaugh map). This advanced representation helps us see patterns in how the controller makes decisions:
+
+![image](https://github.com/user-attachments/assets/7906aecd-2d67-4061-a0d4-64f8634b7a60)
 
 ## Tuning Your Project
 
