@@ -4,25 +4,34 @@
 #define PWM_D9_PIN 9  // Must be 9 or 10 (Timer1-based PWM)
 #define JOYSTICK_PIN A0
 
-#define PRINTS
+
+// #define PRINTS
 
 // Ultrasonic Sensor (Trigger, Echo)
 SimpleUltrasonic sensor(3, 2);
 
+float currentFanPWM = 78.0; // Start with medium value
+
 // Singleton Outputs:
-#define MAX_SPEED 83
-#define MIN_SPEED 76.5
-const float VERY_LOW_SPEED (MIN_SPEED);
-const float LOW_SPEED (MIN_SPEED + ((MAX_SPEED - MIN_SPEED) * 0.25));
-const float MID_SPEED ((MAX_SPEED + MIN_SPEED) * 0.5);
-const float HIGH_SPEED (MIN_SPEED + ((MAX_SPEED - MIN_SPEED) * 0.75));
-const float VERY_HIGH_SPEED (MAX_SPEED);
+#define MAX_DELTA 0.015
+#define MIN_DELTA 0.01
+//const float VERY_LOW_SPEED = (-MIN_DELTA);
+//const float LOW_SPEED = (-MIN_DELTA/2);
+//const float MID_SPEED =  0.0;
+//const float HIGH_SPEED = (MAX_DELTA/2);
+//const float VERY_HIGH_SPEED = (MAX_DELTA);
+
+const float VERY_LOW_SPEED = -0.01;
+const float LOW_SPEED = -0.005;
+const float MID_SPEED = 0.0;
+const float HIGH_SPEED = 0.005;
+const float VERY_HIGH_SPEED = 0.01;
 
 // Fuzzy Logic System
 Fuzzy *fuzzy = new Fuzzy();
-FuzzySet *veryNegative, *negative, *zero, *positive, *veryPositive;  // Target error
-FuzzySet *veryLow, *low, *mediumLow, *medium, *mediumHigh, *high, *veryHigh;
-FuzzySet *goingDownFast, *goingDown, *steady, *goingUp, *goingUpFast;
+FuzzySet *neg_far, *neg_close, *zero_p, *pos_close, *pos_far;  // Target error
+FuzzySet *neg_high, *neg_low, *zero_m, *pos_low, *pos_high;
+FuzzySet *neg_fast, *neg_slow, *zero_s, *pos_slow, *pos_fast; // Speeds
 
 // Toggle mode: 0 = Joystick (Manual), 1 = Fuzzy (Automatic)
 bool fuzzyMode = true;
@@ -37,7 +46,7 @@ float previousDistance = 0;
 unsigned long previousTime, timea, timeb = 0;
 float ballSpeed = 0;
 float targetError = 0;  // Difference from target position
-float currentTargetPosition = 7.0;  // Start at middle of range
+float currentTargetPosition = 14;  // Start at middle of range
 const float minTargetPosition = 3.0;
 const float maxTargetPosition = 12.0;
 
@@ -48,7 +57,7 @@ void updateTargetWithJoystick() {
     // Calculate rate of change based on joystick position
     // Center position (around 512) = no change
     // Full right/up = fast increase, full left/down = fast decrease
-    float rate = mapfloat(joystickValue, 0.0, 1023.0, -0.05, 0.05);
+    float rate = mapfloat(joystickValue, 0.0, 1023.0, -0.005, 0.005);
     
     // Create a dead zone in the middle to prevent drift
     if (abs(rate) < 0.01) {
@@ -63,8 +72,13 @@ void updateTargetWithJoystick() {
 }
 
 
-float mapfloat(float in, float in_min, float in_max, float out_min, float out_max) {
-    return (((in - in_min) / (in_max - in_min)) * (out_max - out_min) + out_min);
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
+  // Check if input is out of range and constrain it
+  if (x < in_min) x = in_min;
+  if (x > in_max) x = in_max;
+  
+  // Perform the mapping calculation
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 void updateSmoothedDistance(float newReading) {
@@ -72,7 +86,7 @@ void updateSmoothedDistance(float newReading) {
     static int index = 0;
 
     // Reject clearly erroneous readings
-    if (newReading > 0 && newReading < 16) {  // Valid range check
+    if (newReading > 0 && newReading < 32) {  // Valid range check
         readings[index] = newReading;
         index = (index + 1) % smoothingFactor;
 
@@ -118,142 +132,72 @@ void updateBallSpeed() {
     }
 }
 
-//void updateTargetError() {
-//    // Positive error means ball is above target (distance less than target)
-//    // Negative error means ball is below target (distance more than target)
-//    targetError = targetDistance - smoothedDistance;
-//}
 
 void setupFuzzy() {
     // Define input fuzzy variable for target error
     FuzzyInput *errorInput = new FuzzyInput(1);
-    veryNegative = new FuzzySet(-7, -7, -5, -2);      // Far below target
-    negative = new FuzzySet(-4, -2.5, -2.5, -0.5);    // Below target
-    zero = new FuzzySet(-1.0, -0.2, 0.2, 1.0);        // At target
-    positive = new FuzzySet(0.5, 2.5, 2.5, 4);        // Above target  
-    veryPositive = new FuzzySet(2, 5, 7, 7);          // Far above target
-    errorInput->addFuzzySet(veryNegative);
-    errorInput->addFuzzySet(negative);
-    errorInput->addFuzzySet(zero);
-    errorInput->addFuzzySet(positive);
-    errorInput->addFuzzySet(veryPositive);
+    neg_far = new FuzzySet(0, 0, 40, 85);      // Far below target
+    neg_close = new FuzzySet(65, 90, 110, 125);    // Below target
+    zero_p = new FuzzySet(100, 115, 130, 140);        // At target
+    pos_close = new FuzzySet(130, 140, 155, 175);        // Above target  
+    pos_far = new FuzzySet(150, 170, 255, 255);          // Far above target
+    errorInput->addFuzzySet(neg_far);
+    errorInput->addFuzzySet(neg_close);
+    errorInput->addFuzzySet(zero_p);
+    errorInput->addFuzzySet(pos_close);
+    errorInput->addFuzzySet(pos_far);
     fuzzy->addFuzzyInput(errorInput);
 
     FuzzyInput *speedInput = new FuzzyInput(2);
-    goingDown = new FuzzySet(-10, -10, -1.5, -0.3);   
-    steady = new FuzzySet(-0.75, -0.1, 0.1, 0.75);    
-    goingUp = new FuzzySet(0.3, 1.5, 10, 10);         
-    speedInput->addFuzzySet(goingDown);
-    speedInput->addFuzzySet(steady);
-    speedInput->addFuzzySet(goingUp);
+    neg_fast = new FuzzySet(0, 0, 20, 90);
+    neg_slow = new FuzzySet(50, 70, 90, 120);   
+    zero_s = new FuzzySet(100, 125, 135, 155);    
+    pos_slow = new FuzzySet(140, 170, 180, 200);     
+    pos_fast = new FuzzySet(150, 200, 255, 255);    
+    speedInput->addFuzzySet(neg_fast);
+    speedInput->addFuzzySet(neg_slow);
+    speedInput->addFuzzySet(zero_s);
+    speedInput->addFuzzySet(pos_slow);
+    speedInput->addFuzzySet(pos_fast);
     fuzzy->addFuzzyInput(speedInput);
 
     FuzzyOutput *fanSpeed = new FuzzyOutput(1);
-    veryLow = new FuzzySet(VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED);
-    low = new FuzzySet(LOW_SPEED, LOW_SPEED, LOW_SPEED, LOW_SPEED);      
-    medium = new FuzzySet(MID_SPEED, MID_SPEED, MID_SPEED, MID_SPEED);   
-    high = new FuzzySet(HIGH_SPEED, HIGH_SPEED, HIGH_SPEED, HIGH_SPEED);     
-    veryHigh = new FuzzySet(VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED); 
-    fanSpeed->addFuzzySet(veryLow);
-    fanSpeed->addFuzzySet(low);
-    fanSpeed->addFuzzySet(medium);
-    fanSpeed->addFuzzySet(high);
-    fanSpeed->addFuzzySet(veryHigh);
+    neg_high = new FuzzySet(VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED, VERY_LOW_SPEED);
+    neg_low = new FuzzySet(LOW_SPEED, LOW_SPEED, LOW_SPEED, LOW_SPEED);      
+    zero_m = new FuzzySet(MID_SPEED, MID_SPEED, MID_SPEED, MID_SPEED);   
+    pos_low = new FuzzySet(HIGH_SPEED, HIGH_SPEED, HIGH_SPEED, HIGH_SPEED);     
+    pos_high = new FuzzySet(VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED, VERY_HIGH_SPEED); 
+    fanSpeed->addFuzzySet(neg_high);
+    fanSpeed->addFuzzySet(neg_low);
+    fanSpeed->addFuzzySet(zero_m);
+    fanSpeed->addFuzzySet(pos_low);
+    fanSpeed->addFuzzySet(pos_high);
     fuzzy->addFuzzyOutput(fanSpeed);
 
-    // Rules based on error and speed
-    // Very negative error (ball far below target)
-    FuzzyRuleAntecedent *ifVeryNegativeAndGoingDown = new FuzzyRuleAntecedent();
-    ifVeryNegativeAndGoingDown->joinWithAND(veryNegative, goingDown);
-    FuzzyRuleConsequent *thenVeryHigh1 = new FuzzyRuleConsequent();
-    thenVeryHigh1->addOutput(veryHigh);
-    fuzzy->addFuzzyRule(new FuzzyRule(1, ifVeryNegativeAndGoingDown, thenVeryHigh1));
-
-    FuzzyRuleAntecedent *ifVeryNegativeAndSteady = new FuzzyRuleAntecedent();
-    ifVeryNegativeAndSteady->joinWithAND(veryNegative, steady);
-    FuzzyRuleConsequent *thenVeryHigh2 = new FuzzyRuleConsequent();
-    thenVeryHigh2->addOutput(veryHigh);
-    fuzzy->addFuzzyRule(new FuzzyRule(2, ifVeryNegativeAndSteady, thenVeryHigh2));
-
-    FuzzyRuleAntecedent *ifVeryNegativeAndGoingUp = new FuzzyRuleAntecedent();
-    ifVeryNegativeAndGoingUp->joinWithAND(veryNegative, goingUp);
-    FuzzyRuleConsequent *thenHigh1 = new FuzzyRuleConsequent();
-    thenHigh1->addOutput(high);
-    fuzzy->addFuzzyRule(new FuzzyRule(3, ifVeryNegativeAndGoingUp, thenHigh1));
-
-    // Negative error (ball below target)
-    FuzzyRuleAntecedent *ifNegativeAndGoingDown = new FuzzyRuleAntecedent();
-    ifNegativeAndGoingDown->joinWithAND(negative, goingDown);
-    FuzzyRuleConsequent *thenHigh2 = new FuzzyRuleConsequent();
-    thenHigh2->addOutput(high);
-    fuzzy->addFuzzyRule(new FuzzyRule(4, ifNegativeAndGoingDown, thenHigh2));
-
-    FuzzyRuleAntecedent *ifNegativeAndSteady = new FuzzyRuleAntecedent();
-    ifNegativeAndSteady->joinWithAND(negative, steady);
-    FuzzyRuleConsequent *thenMedium1 = new FuzzyRuleConsequent();
-    thenMedium1->addOutput(medium);
-    fuzzy->addFuzzyRule(new FuzzyRule(5, ifNegativeAndSteady, thenMedium1));
-
-    FuzzyRuleAntecedent *ifNegativeAndGoingUp = new FuzzyRuleAntecedent();
-    ifNegativeAndGoingUp->joinWithAND(negative, goingUp);
-    FuzzyRuleConsequent *thenLow1 = new FuzzyRuleConsequent();
-    thenLow1->addOutput(low);
-    fuzzy->addFuzzyRule(new FuzzyRule(6, ifNegativeAndGoingUp, thenLow1));
-
-    // Zero error (ball at target)
-    FuzzyRuleAntecedent *ifZeroAndGoingDown = new FuzzyRuleAntecedent();
-    ifZeroAndGoingDown->joinWithAND(zero, goingDown);
-    FuzzyRuleConsequent *thenMedium2 = new FuzzyRuleConsequent();
-    thenMedium2->addOutput(medium);
-    fuzzy->addFuzzyRule(new FuzzyRule(7, ifZeroAndGoingDown, thenMedium2));
-
-    FuzzyRuleAntecedent *ifZeroAndSteady = new FuzzyRuleAntecedent();
-    ifZeroAndSteady->joinWithAND(zero, steady);
-    FuzzyRuleConsequent *thenMedium3 = new FuzzyRuleConsequent();
-    thenMedium3->addOutput(medium); 
-    fuzzy->addFuzzyRule(new FuzzyRule(8, ifZeroAndSteady, thenMedium3));
-
-    FuzzyRuleAntecedent *ifZeroAndGoingUp = new FuzzyRuleAntecedent();
-    ifZeroAndGoingUp->joinWithAND(zero, goingUp);
-    FuzzyRuleConsequent *thenMedium4 = new FuzzyRuleConsequent();
-    thenMedium4->addOutput(medium);
-    fuzzy->addFuzzyRule(new FuzzyRule(9, ifZeroAndGoingUp, thenMedium4));
-
-    FuzzyRuleAntecedent *ifPositiveAndGoingDown = new FuzzyRuleAntecedent();
-    ifPositiveAndGoingDown->joinWithAND(positive, goingDown);
-    FuzzyRuleConsequent *thenLow4 = new FuzzyRuleConsequent(); 
-    thenLow4->addOutput(low);  
-    fuzzy->addFuzzyRule(new FuzzyRule(10, ifPositiveAndGoingDown, thenLow4));
-
-    FuzzyRuleAntecedent *ifPositiveAndSteady = new FuzzyRuleAntecedent();
-    ifPositiveAndSteady->joinWithAND(positive, steady);
-    FuzzyRuleConsequent *thenLow5 = new FuzzyRuleConsequent();
-    thenLow5->addOutput(low);
-    fuzzy->addFuzzyRule(new FuzzyRule(11, ifPositiveAndSteady, thenLow5));
-
-    FuzzyRuleAntecedent *ifPositiveAndGoingUp = new FuzzyRuleAntecedent();
-    ifPositiveAndGoingUp->joinWithAND(positive, goingUp);
-    FuzzyRuleConsequent *thenVeryLow2 = new FuzzyRuleConsequent(); 
-    thenVeryLow2->addOutput(veryLow); 
-    fuzzy->addFuzzyRule(new FuzzyRule(12, ifPositiveAndGoingUp, thenVeryLow2));
-
-    FuzzyRuleAntecedent *ifVeryPositiveAndGoingDown = new FuzzyRuleAntecedent();
-    ifVeryPositiveAndGoingDown->joinWithAND(veryPositive, goingDown);
-    FuzzyRuleConsequent *thenVeryLow3 = new FuzzyRuleConsequent(); 
-    thenVeryLow3->addOutput(veryLow); 
-    fuzzy->addFuzzyRule(new FuzzyRule(13, ifVeryPositiveAndGoingDown, thenVeryLow3));
-
-    FuzzyRuleAntecedent *ifVeryPositiveAndSteady = new FuzzyRuleAntecedent();
-    ifVeryPositiveAndSteady->joinWithAND(veryPositive, steady);
-    FuzzyRuleConsequent *thenVeryLow4 = new FuzzyRuleConsequent();
-    thenVeryLow4->addOutput(veryLow);
-    fuzzy->addFuzzyRule(new FuzzyRule(14, ifVeryPositiveAndSteady, thenVeryLow4));
-
-    FuzzyRuleAntecedent *ifVeryPositiveAndGoingUp = new FuzzyRuleAntecedent();
-    ifVeryPositiveAndGoingUp->joinWithAND(veryPositive, goingUp);
-    FuzzyRuleConsequent *thenVeryLow5 = new FuzzyRuleConsequent();
-    thenVeryLow5->addOutput(veryLow);
-    fuzzy->addFuzzyRule(new FuzzyRule(15, ifVeryPositiveAndGoingUp, thenVeryLow5));
+    // Generate fuzzy rules from K-map
+    int ruleIndex = 1;
+    FuzzySet *speedLevels[] = {pos_fast, pos_slow, zero_s, neg_slow, neg_fast};
+    FuzzySet *posLevels[] = {neg_far, neg_close, zero_p, pos_close, pos_far};
+    FuzzySet *outputLevels[5][5] = {
+        {NULL, neg_low, neg_high, neg_high, NULL},
+        {pos_low, zero_m, neg_low, neg_high, neg_high},
+        {pos_high, pos_low, zero_m, neg_low, neg_high},
+        {pos_high, pos_high, pos_low, zero_m, neg_low},
+        {NULL, pos_high, pos_high, pos_low, NULL}
+    };
+   
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+          if (outputLevels[i][j] != NULL) 
+          {
+            FuzzyRuleAntecedent *antecedent = new FuzzyRuleAntecedent();
+            antecedent->joinWithAND(speedLevels[i], posLevels[j]);
+            FuzzyRuleConsequent *consequent = new FuzzyRuleConsequent();
+            consequent->addOutput(outputLevels[i][j]);
+            fuzzy->addFuzzyRule(new FuzzyRule(ruleIndex++, antecedent, consequent));
+          }
+        }
+    }
 }
 
 void setupPWM() {
@@ -287,6 +231,10 @@ void loop() {
         
         // Calculate error using the current target
         targetError = currentTargetPosition - smoothedDistance;
+        targetError = constrain(targetError, -6.0, 6.0);
+        float mappederror = mapfloat(targetError, -6.0, 6.0, 0.0, 255.0);
+        ballSpeed = constrain(ballSpeed, -6.0, 6.0);
+        float mappedspeed = mapfloat(ballSpeed, -6.0, 6.0, 0.0, 255.0);
         
         if (distance != -1) {
             #ifdef PRINTS
@@ -300,36 +248,37 @@ void loop() {
                 Serial.print(ballSpeed);
                 Serial.print(" in/sec");
             #endif
-
-            static float lastFanPWM = 79.5; // Start with medium value
             
-            fuzzy->setInput(1, targetError);
-            fuzzy->setInput(2, ballSpeed);
+            fuzzy->setInput(1, mappederror);
+            fuzzy->setInput(2, mappedspeed);
             fuzzy->fuzzify();
-            float fanPWM = fuzzy->defuzzify(1);
+            float fanPWM_delta = fuzzy->defuzzify(1);
             
-            // Adaptive rate limiting - faster during large errors
-            float maxChange = 0.2; // Normal rate limit
-            if (abs(targetError) > 3.0) {
-                maxChange = 0.2; // Faster response for large errors
-            }
+            // // Adaptive rate limiting - faster during large errors
+            // float maxChange = 0.2; // Normal rate limit
+            // if (abs(targetError) > 3.0) {
+            //     maxChange = 0.2; // Faster response for large errors
+            // }
             
-            // Apply rate limiting
-            if (fanPWM > lastFanPWM + maxChange) {
-                fanPWM = lastFanPWM + maxChange;
-            } else if (fanPWM < lastFanPWM - maxChange) {
-                fanPWM = lastFanPWM - maxChange;
-            }
+            // // Apply rate limiting
+            // if (fanPWM_delta > lastfanPWM_delta + maxChange) {
+            //     fanPWM_delta = lastfanPWM_delta + maxChange;
+            // } else if (fanPWM_delta < lastfanPWM_delta - maxChange) {
+            //     fanPWM_delta = lastfanPWM_delta - maxChange;
+            // }
             
-            lastFanPWM = fanPWM;
+            currentFanPWM += fanPWM_delta;
+            currentFanPWM = constrain(currentFanPWM, 0.0, 100.0);
             
             #ifdef PRINTS
+                Serial.print("\tDelta speed: ");
+                Serial.print(fanPWM_delta);
                 Serial.print("\tFan speed: ");
-                Serial.println(fanPWM);
+                Serial.println(currentFanPWM);
             #endif
 
             // Apply fan power
-            setFanSpeed(fanPWM);
+            setFanSpeed(currentFanPWM);
         } else {
             Serial.println("Error: Measurement timeout");
         }
@@ -344,6 +293,51 @@ void loop() {
             Serial.println(pwmDutyCycle);
         #endif
     }
+           // Debug output for input and output fuzzy sets
+        // Serial.println("Error membership values:");
+        // Serial.print("veryNegativeError: ");
+        // Serial.println(veryNegativeError->getPertinence());
+        // Serial.print("negativeError: ");
+        // Serial.println(negativeError->getPertinence());
+        // Serial.print("zeroError: ");
+        // Serial.println(zeroError->getPertinence());
+        // Serial.print("positiveError: ");
+        // Serial.println(positiveError->getPertinence());
+        // Serial.print("veryPositiveError: ");
+        // Serial.println(veryPositiveError->getPertinence());
+        
+        // Serial.println("Speed membership values:");
+        // Serial.print("goingDownFast: ");
+        // Serial.println(goingDownFast->getPertinence());
+        // Serial.print("goingDown: ");
+        // Serial.println(goingDown->getPertinence());
+        // Serial.print("steady: ");
+        // Serial.println(steady->getPertinence());
+        // Serial.print("goingUp: ");
+        // Serial.println(goingUp->getPertinence());
+        // Serial.print("goingUpFast: ");
+        // Serial.println(goingUpFast->getPertinence());
+         
+        // Debug output for rule activations
+        // Serial.println("Rule activations:");
+        // bool anyRuleActive = false;
+        // for (int i = 1; i <= 25; i++) {  // Now using 20 rules
+        //     float activation = fuzzy->isFiredRule(i);
+        //     // if (activation > 0) {
+        //         anyRuleActive = true;
+        //         Serial.print("Rule ");
+        //         Serial.print(i);
+        //         Serial.print(": ");
+        //         Serial.print(activation);
+        //         Serial.print(" ");
+        //     // }
+        // }
+        // Serial.println(" ");
+        
+        // if (!anyRuleActive) {
+        //     Serial.println("WARNING: No rules are active!");
+        // }
+
     timeb = millis();
     delay(5);
 }
