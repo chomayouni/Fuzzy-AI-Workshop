@@ -5,16 +5,16 @@
 #define JOYSTICK_PIN A0
 
 
-// #define PRINTS
+#define PRINTS
 
 // Ultrasonic Sensor (Trigger, Echo)
 SimpleUltrasonic sensor(3, 2);
 
-float currentFanPWM = 78.0; // Start with medium value
+float currentFanPWM = 90.0; // Start with medium value
 
 // Singleton Outputs:
-#define MAX_DELTA 0.015
-#define MIN_DELTA 0.01
+// #define MAX_DELTA 0.015
+// #define MIN_DELTA 0.01
 //const float VERY_LOW_SPEED = (-MIN_DELTA);
 //const float LOW_SPEED = (-MIN_DELTA/2);
 //const float MID_SPEED =  0.0;
@@ -46,9 +46,9 @@ float previousDistance = 0;
 unsigned long previousTime, timea, timeb = 0;
 float ballSpeed = 0;
 float targetError = 0;  // Difference from target position
-float currentTargetPosition = 14;  // Start at middle of range
+float currentTargetPosition = 12.0;  // Start at middle of range
 const float minTargetPosition = 3.0;
-const float maxTargetPosition = 12.0;
+const float maxTargetPosition = 28.0;
 
 void updateTargetWithJoystick() {
     // Read joystick value
@@ -60,7 +60,7 @@ void updateTargetWithJoystick() {
     float rate = mapfloat(joystickValue, 0.0, 1023.0, -0.005, 0.005);
     
     // Create a dead zone in the middle to prevent drift
-    if (abs(rate) < 0.01) {
+    if (abs(rate) < 0.002) {
         rate = 0.0;
     }
     
@@ -284,7 +284,7 @@ void loop() {
         }
     } else {
         int joystickValue = analogRead(JOYSTICK_PIN);
-        float pwmDutyCycle = mapfloat(joystickValue, 0.0, 1023.0, 50.0, 90.0);
+        float pwmDutyCycle = mapfloat(joystickValue, 0.0, 1023.0, 50.0, 100.0);
         setFanSpeed(pwmDutyCycle);
         #ifdef PRINTS
             Serial.print("Manual Mode: \t Distance: ");
